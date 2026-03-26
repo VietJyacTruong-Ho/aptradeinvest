@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Indiana – Asia Pacific Trade &amp; Investment Dashboard | APBAI</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="site-header">
+    <div class="header-left">
+      <p class="header-title">Indiana – Asia Pacific</p>
+      <p class="header-sub">Trade &amp; Investment Dashboard</p>
+    </div>
+    <span class="header-credit">Asia Pacific Business Association of Indiana</span>
+  </header>
+
+  <!-- ── Country Selector ───────────────────────────────────────────────── -->
+  <nav class="country-selector">
+    <div id="country-pills">
+      <button class="country-pill" data-country="Japan">Japan</button>
+      <button class="country-pill" data-country="South Korea">South Korea</button>
+      <button class="country-pill" data-country="China">China</button>
+      <button class="country-pill" data-country="India">India</button>
+      <button class="country-pill" data-country="Australia">Australia</button>
+      <button class="country-pill" data-country="Taiwan">Taiwan</button>
+      <button class="country-pill" data-country="Singapore">Singapore</button>
+      <button class="country-pill" data-country="Vietnam">Vietnam</button>
+      <button class="country-pill" data-country="Thailand">Thailand</button>
+      <button class="country-pill" data-country="Indonesia">Indonesia</button>
+      <button class="country-pill" data-country="Malaysia">Malaysia</button>
+      <button class="country-pill" data-country="Philippines">Philippines</button>
+      <button class="country-pill" data-country="Hong Kong">Hong Kong</button>
+    </div>
+  </nav>
+
+  <!-- ── Main Content ───────────────────────────────────────────────────── -->
+  <main class="main-grid">
+
+    <!-- Left: Trade Panel -->
+    <section id="trade-panel">
+      <h2 id="trade-panel-title">Indiana Exports to Japan</h2>
+
+      <div id="trade-no-data" style="display:none;"></div>
+
+      <div class="chart-container" id="line-chart-container">
+        <canvas id="lineChart"></canvas>
+      </div>
+
+      <div class="chart-container" id="bar-chart-container">
+        <canvas id="barChart"></canvas>
+      </div>
+    </section>
+
+    <!-- Right: Investment Panel -->
+    <aside id="investment-panel">
+      <h2>Asia-Pacific Investment in Indiana</h2>
+      <div id="investment-summary"></div>
+      <div id="investment-cards"></div>
+    </aside>
+
+  </main>
+
+  <!-- ── Footer ─────────────────────────────────────────────────────────── -->
+  <footer class="site-footer">
+    Trade data: U.S. Census Bureau (2014–2025) &nbsp;·&nbsp;
+    Investment data: IEDC / JETRO / KOTRA &nbsp;·&nbsp;
+    Built for APBAI
+  </footer>
+
+  <!-- ── Scripts (regular scripts, no type="module") ─────────────────────── -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
