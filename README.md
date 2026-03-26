@@ -1,7 +1,5 @@
 # Indiana – Asia Pacific Trade & Investment Dashboard
 
-Built for the Asia Pacific Business Association of Indiana. Displays Indiana export data by country and commodity alongside named Asia-Pacific investment events in Indiana.
-
 ## Data files
 
 The dashboard reads CSV files from the `/data/` folder at the project root (same level as `index.html`):
