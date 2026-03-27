@@ -63,12 +63,15 @@ body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: space-between;
+  align-items: center;
 }
 
 #country-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  flex: 1;
 }
 
 .country-pill {
@@ -93,6 +96,67 @@ body {
   border-color: var(--navy);
 }
 
+.country-pill.partial {
+  background: white;
+  border: 1px dashed var(--blue);
+  color: var(--blue);
+}
+
+/* ── Region Toggle Button ───────────────────────────────────────────────── */
+#region-toggle-btn {
+  border: 1px solid var(--blue);
+  background: white;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: var(--blue);
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+#region-toggle-btn:hover {
+  background: var(--blue);
+  color: white;
+}
+
+/* ── Headline Stats ──────────────────────────────────────────────────────── */
+#headline-stats {
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 32px;
+  display: flex;
+  gap: 16px;
+}
+
+.headline-stat-box {
+  flex: 1;
+  text-align: center;
+  padding: 12px 8px;
+}
+
+.headline-stat-value {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.headline-stat-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.headline-stat-sublabel {
+  display: block;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
 /* ── Main Grid ──────────────────────────────────────────────────────────── */
 .main-grid {
   display: grid;
@@ -102,9 +166,15 @@ body {
   align-items: start;
 }
 
+/* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .main-grid {
     grid-template-columns: 1fr;
+  }
+
+  #headline-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -199,13 +269,7 @@ body {
   margin-top: 2px;
 }
 
-/* ── Investment Cards ───────────────────────────────────────────────────── */
-#investment-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
+/* ── Investment Cards (legacy — kept for compatibility) ─────────────────── */
 .investment-card {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -216,6 +280,86 @@ body {
   background: white;
 }
 
+/* ── Investment Timeline ─────────────────────────────────────────────────── */
+#investment-cards {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Vertical timeline line */
+#investment-cards::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+
+.timeline-year-group {
+  position: relative;
+  padding-left: 48px;
+  margin-bottom: 16px;
+}
+
+/* Horizontal connector from vertical line to first card */
+.timeline-year-group::before {
+  content: '';
+  position: absolute;
+  left: -28px;
+  top: 8px;
+  width: 24px;
+  height: 2px;
+  background: var(--border);
+}
+
+.timeline-year-label {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 40px;
+  text-align: right;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1;
+}
+
+.timeline-events {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timeline-card {
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: white;
+}
+
+.timeline-card .card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.country-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* ── Shared Card Elements ────────────────────────────────────────────────── */
 .card-company {
   font-weight: 600;
   font-size: 0.95rem;
