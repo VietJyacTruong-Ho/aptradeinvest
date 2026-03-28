@@ -309,6 +309,7 @@ function renderAll() {
   updateHeadlineStats(filteredTrade, filteredInvestment, filteredPresence);
   updateCharts(filteredTrade, filteredInvestment, countriesArray);
   renderInvestmentPanel(filteredInvestment, label);
+  renderCountryCharts(countriesArray, tradeData, investmentData);
 }
 
 /* ── renderPills — redraws the pill bar and reattaches listeners ──────────── */
