@@ -139,35 +139,52 @@ function toggleRegion() {
   renderPills();
 }
 
-/* ── updateStats — recalculates sbar stats from filtered CSV rows ─────────
-   All six values are computed live from the current selection.
+/* ── updateHeadlineStats — recalculates stats bar from filtered CSV rows ───
+   Dynamically rebuilds the Trade/FDI split bar on every selection change.
    ──────────────────────────────────────────────────────────────────────── */
-function updateStats(filteredTrade, filteredInvestment, filteredPresence) {
-  /* Trade */
-  var grand = 0, baseSum = 0, lastSum = 0;
-  filteredTrade.forEach(function(row) {
-    var v = Number(row.export_value_usd) || 0;
-    grand += v;
-    if (row.year === 2014) baseSum += v;
-    if (row.year === 2025) lastSum += v;
-  });
-  var grandB  = grand / 1e9;
-  var growth  = baseSum > 0 ? (lastSum / baseSum).toFixed(1) + 'x' : '—';
-  document.getElementById('sTotalEx').textContent = grandB >= 0.01 ? '$' + grandB.toFixed(1) + 'B' : '—';
-  document.getElementById('sGrowth').textContent  = growth;
+function updateHeadlineStats(tradeRows, investmentRows, presenceRows) {
+  var totalExports = 0;
+  var exports2014  = 0;
+  var exports2025  = 0;
 
-  /* FDI */
-  var tv = 0, tj = 0;
-  filteredInvestment.forEach(function(i) {
-    var v = parseFloat(i.announced_value_usd_m);
-    if (!isNaN(v)) tv += v;
-    var j = parseFloat(i.jobs);
-    if (!isNaN(j)) tj += j;
-  });
-  document.getElementById('sTotalInv').textContent = tv > 0 ? formatValue(tv) : '—';
-  document.getElementById('sEvents').textContent   = filteredInvestment.length || '0';
-  document.getElementById('sJobs').textContent     = tj > 0 ? Math.round(tj).toLocaleString() : '0';
-  document.getElementById('sFac').textContent      = filteredPresence.length || '0';
+  for (var i = 0; i < tradeRows.length; i++) {
+    var v = Number(tradeRows[i].export_value_usd) || 0;
+    totalExports += v;
+    if (tradeRows[i].year === 2014) exports2014 += v;
+    if (tradeRows[i].year === 2025) exports2025 += v;
+  }
+
+  var growthText = (exports2014 > 0 && exports2025 > 0)
+    ? (exports2025 / exports2014).toFixed(1) + 'x'
+    : 'N/A';
+
+  var totalInvestment = 0;
+  var totalJobs = 0;
+  for (var j = 0; j < investmentRows.length; j++) {
+    var iv = parseFloat(investmentRows[j].announced_value_usd_m);
+    if (!isNaN(iv)) totalInvestment += iv;
+    var jv = parseFloat(investmentRows[j].jobs);
+    if (!isNaN(jv)) totalJobs += jv;
+  }
+
+  var investDisplay    = investmentRows.length === 0 ? '\u2014' : formatValue(totalInvestment);
+  var jobsDisplay      = totalJobs > 0 ? Math.round(totalJobs).toLocaleString() : '\u2014';
+  var facilitiesDisplay = presenceRows.length || '\u2014';
+
+  document.querySelector('.sbar').innerHTML =
+    '<div class="hstat-section">' +
+      '<span class="hstat-lbl hstat-trade">Trade</span>' +
+      '<div class="hstat-item"><span class="headline-stat-value">' + fmtAxis(totalExports) + '</span><span class="headline-stat-label">Total Exports (2014\u20132025)</span></div>' +
+      '<div class="hstat-item"><span class="headline-stat-value">' + growthText + '</span><span class="headline-stat-label">Export Growth</span><span class="headline-stat-sublabel">vs. 2014 baseline</span></div>' +
+    '</div>' +
+    '<div class="hstat-div"></div>' +
+    '<div class="hstat-section">' +
+      '<span class="hstat-lbl hstat-fdi">FDI</span>' +
+      '<div class="hstat-item"><span class="headline-stat-value">' + investDisplay + '</span><span class="headline-stat-label">Announced Investment</span></div>' +
+      '<div class="hstat-item"><span class="headline-stat-value">' + investmentRows.length + '</span><span class="headline-stat-label">Events</span></div>' +
+      '<div class="hstat-item"><span class="headline-stat-value">' + jobsDisplay + '</span><span class="headline-stat-label">Announced Jobs</span></div>' +
+      '<div class="hstat-item hstat-item-last"><span class="headline-stat-value">' + facilitiesDisplay + '</span><span class="headline-stat-label">Known Facilities</span></div>' +
+    '</div>';
 }
 
 /* ── buildCards — renders investment card panel ──────────────────────────── */
@@ -283,7 +300,7 @@ function update() {
     return sel.indexOf(row.parent_country) !== -1;
   });
 
-  updateStats(filteredTrade, filteredInvestment, filteredPresence);
+  updateHeadlineStats(filteredTrade, filteredInvestment, filteredPresence);
   buildTrade(filteredTrade, filteredInvestment, sel, multi);
   buildCom(filteredTrade, sel, multi);
   buildCards(filteredInvestment);
