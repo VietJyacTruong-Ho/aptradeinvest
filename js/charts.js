@@ -173,10 +173,12 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
 
   document.getElementById('msDt').textContent = 'Hover a marker to see investment details';
 
-  const ca  = tChart.chartArea;
-  const pw  = ca.right - ca.left;
-  const ox  = ca.left;
-  const xPos = yr => ox + (yr - 2014) / 12 * pw;
+  const ca   = tChart.chartArea;
+  const pw   = ca.right - ca.left;
+  const ox   = ca.left;
+  const xMin = tChart.options.scales.x.min != null ? tChart.options.scales.x.min : 2014;
+  const xMax = tChart.options.scales.x.max != null ? tChart.options.scales.x.max : 2026;
+  const xPos = yr => ox + (yr - xMin) / (xMax - xMin) * pw;
   const clr  = CC[country] || '#536070';
 
   /* Horizontal baseline */
@@ -184,8 +186,8 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
   al.style.cssText = `position:absolute;top:16px;left:${ox}px;width:${pw}px;height:1px;background:#dde2ea`;
   inner.appendChild(al);
 
-  /* Tick marks and year labels */
-  [2014,2016,2018,2020,2022,2024,2026].forEach(yr => {
+  /* Tick marks and year labels — only within visible range */
+  [2014,2016,2018,2020,2022,2024,2026].filter(yr => yr >= xMin && yr <= xMax).forEach(yr => {
     const xp = xPos(yr);
 
     const tk = document.createElement('div');
@@ -207,7 +209,9 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
   });
 
   Object.entries(byY).forEach(([yr, arr]) => {
-    const xp = xPos(parseInt(yr));
+    const yrN = parseInt(yr);
+    if (yrN < xMin || yrN > xMax) return;
+    const xp = xPos(yrN);
     arr.forEach((inv, i) => {
       const v  = parseFloat(inv.announced_value_usd_m);
       const sz = mSz(isNaN(v) ? 0 : v);
@@ -317,7 +321,14 @@ function buildCom(tradeRows, countriesArray, isMulti) {
           border: { display: false }
         },
         y: {
-          ticks: { font: { family: 'IBM Plex Sans', size: 11 }, color: '#536070' },
+          ticks: {
+            font: { family: 'IBM Plex Sans', size: 11 },
+            color: '#536070',
+            callback: function(val) {
+              var lbl = this.getLabelForValue(val);
+              return lbl && lbl.length > 22 ? lbl.slice(0, 22) + '\u2026' : lbl;
+            }
+          },
           grid:   { display: false },
           border: { display: false }
         }

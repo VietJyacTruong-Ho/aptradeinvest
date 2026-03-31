@@ -57,6 +57,9 @@ var tradeData      = [];
 var investmentData = [];
 var presenceData   = [];
 
+/* ── Year range state — shared by slider UI and chart scale ─────────────── */
+var yrState = { min: 2014, max: 2026 };
+
 /* ── formatValue — $M / $B formatter ────────────────────────────────────── */
 function formatValue(millionsFloat) {
   if (millionsFloat == null || isNaN(millionsFloat)) return 'N/D';
@@ -82,6 +85,94 @@ function normalizeStatus(s) {
   if (s.toLowerCase().startsWith('closed')) return 'Closed';
   if (s.toLowerCase().indexOf('operational') !== -1) return 'Active';
   return s;
+}
+
+/* ── Year-range slider ───────────────────────────────────────────────────────
+   A vertical two-handle slider that controls the visible x-axis range.
+   Injected into .tc (trade chart container) on init.
+   ──────────────────────────────────────────────────────────────────────── */
+var _markerRebuildTimer = null;
+
+function yearToPct(yr) {
+  return (yr - 2014) / 12 * 100;
+}
+
+function updateSliderUI() {
+  var fill = document.getElementById('yrFill');
+  var topH = document.getElementById('yrTop');
+  var botH = document.getElementById('yrBot');
+  if (!fill || !topH || !botH) return;
+  var tp = yearToPct(yrState.min);
+  var bp = yearToPct(yrState.max);
+  topH.style.top    = tp + '%';
+  botH.style.top    = bp + '%';
+  fill.style.top    = tp + '%';
+  fill.style.height = (bp - tp) + '%';
+  topH.setAttribute('title', yrState.min);
+  botH.setAttribute('title', yrState.max);
+}
+
+function applyYearRange() {
+  if (!tChart) return;
+  tChart.options.scales.x.min = yrState.min;
+  tChart.options.scales.x.max = yrState.max;
+  tChart.update('none');
+  /* Debounce marker rebuild so DOM isn't thrashed on every drag tick */
+  clearTimeout(_markerRebuildTimer);
+  _markerRebuildTimer = setTimeout(function() {
+    var invRows = investmentData.filter(function(r) {
+      return sel.indexOf(r.parent_country) !== -1;
+    });
+    buildMarkers(invRows, sel, compareMode && sel.length > 1);
+  }, 80);
+}
+
+function attachHandleDrag(handle, isTop) {
+  handle.addEventListener('mousedown', function(e) {
+    e.preventDefault();
+    handle.classList.add('dragging');
+
+    function onMove(mv) {
+      var track = document.getElementById('yrTrack');
+      var rect  = track.getBoundingClientRect();
+      var frac  = Math.max(0, Math.min(1, (mv.clientY - rect.top) / rect.height));
+      var yr    = Math.round(2014 + frac * 12);
+      yr = Math.max(2014, Math.min(2026, yr));
+      if (isTop) {
+        yrState.min = Math.min(yr, yrState.max - 1);
+      } else {
+        yrState.max = Math.max(yr, yrState.min + 1);
+      }
+      updateSliderUI();
+      applyYearRange();
+    }
+
+    function onUp() {
+      handle.classList.remove('dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+  });
+}
+
+function initYearSlider() {
+  var tc = document.querySelector('.tc');
+  if (!tc) return;
+  var sl = document.createElement('div');
+  sl.className = 'yr-range-slider';
+  sl.innerHTML =
+    '<div class="yr-track" id="yrTrack">' +
+      '<div class="yr-range-fill" id="yrFill"></div>' +
+      '<div class="yr-handle" id="yrTop"  title="' + yrState.min + '"></div>' +
+      '<div class="yr-handle" id="yrBot"  title="' + yrState.max + '"></div>' +
+    '</div>';
+  tc.insertBefore(sl, tc.firstChild);
+  updateSliderUI();
+  attachHandleDrag(document.getElementById('yrTop'), true);
+  attachHandleDrag(document.getElementById('yrBot'), false);
 }
 
 /* ── renderPills ──────────────────────────────────────────────────────────── */
@@ -302,6 +393,7 @@ function update() {
 
   updateHeadlineStats(filteredTrade, filteredInvestment, filteredPresence);
   buildTrade(filteredTrade, filteredInvestment, sel, multi);
+  applyYearRange();
   buildCom(filteredTrade, sel, multi);
   buildCards(filteredInvestment);
   renderCountryCharts(sel, tradeData, investmentData);
@@ -333,6 +425,7 @@ document.addEventListener('DOMContentLoaded', function() {
     presenceData   = results[2];
 
     renderPills();
+    initYearSlider();
 
     document.getElementById('regionBtn').addEventListener('click', toggleRegion);
     document.getElementById('cmprChk').addEventListener('change', handleCompare);
