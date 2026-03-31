@@ -1,293 +1,327 @@
-/* ── charts.js ───────────────────────────────────────────────────────────
-   All variables and functions are global (no ES module syntax).
-   Loaded after Chart.js CDN + annotation plugin, before app.js.
+/* ── charts.js ─────────────────────────────────────────────────────────────
+   Prototype-based chart functions adapted for CSV data pipeline.
+   Loaded before app.js and country-chart.js.
+   Globals used from app.js at call-time: CC, COUNTRY_MAP
    ──────────────────────────────────────────────────────────────────────── */
 
-var lineChart = null;
-var barChart  = null;
+var tChart = null;
+var cChart = null;
 
-/* ── Colour palette (global — used by countryColor() in app.js too) ──────── */
-var PALETTE = [
-  '#2563eb', '#7c3aed', '#db2777', '#dc2626', '#d97706',
-  '#65a30d', '#0891b2', '#0f766e', '#1d4ed8', '#6d28d9'
-];
+const YRS = [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026];
 
-/* ── Axis / tooltip formatter ─────────────────────────────────────────────
-   Defined BEFORE the chart-creation functions that reference it.
-   Also used by updateHeadlineStats() in app.js (global).
-   ──────────────────────────────────────────────────────────────────────── */
+/* ── fmtAxis — kept for country-chart.js compatibility ───────────────────── */
 function fmtAxis(value) {
   if (value >= 1e9) return '$' + (value / 1e9).toFixed(1) + 'B';
   if (value >= 1e6) return '$' + (value / 1e6).toFixed(0) + 'M';
   return '$' + value.toLocaleString();
 }
 
-/* ── buildAnnotations ────────────────────────────────────────────────────
-   Returns a chartjs-plugin-annotation annotations object.
-   Only produces annotations when exactly 1 country is selected.
-   shortCompanyName() and formatValue() are defined in app.js (global).
-   ──────────────────────────────────────────────────────────────────────── */
-function buildAnnotations(investmentRows, selectedCountriesArray) {
-  if (!selectedCountriesArray || selectedCountriesArray.length !== 1) return {};
-  if (!investmentRows || investmentRows.length === 0) return {};
-
-  /* Sort by announced value descending, take top 3 */
-  var sorted = investmentRows.slice().sort(function(a, b) {
-    var av = parseFloat(a.announced_value_usd_m) || 0;
-    var bv = parseFloat(b.announced_value_usd_m) || 0;
-    return bv - av;
-  });
-  var top3 = sorted.slice(0, 3);
-
-  /* Group by announcement_year (two top-3 events may share a year) */
-  var yearMap = {};
-  for (var i = 0; i < top3.length; i++) {
-    var row = top3[i];
-    var yr  = row.announcement_year;
-    if (!yearMap[yr]) yearMap[yr] = [];
-    yearMap[yr].push(row);
-  }
-
-  var annotations = {};
-  var yearKeys = Object.keys(yearMap);
-
-  for (var j = 0; j < yearKeys.length; j++) {
-    var year     = yearKeys[j];
-    var yearRows = yearMap[year];
-
-    /* Combine label text if multiple events share the same year */
-    var labelParts = yearRows.map(function(r) {
-      return shortCompanyName(r.company_name) +
-             ' \u00b7 ' +
-             formatValue(parseFloat(r.announced_value_usd_m));
-    });
-    var labelText = labelParts.join(' / ');
-
-    annotations['annotation_' + year] = {
-      type:        'line',
-      xMin:        String(year),
-      xMax:        String(year),
-      borderColor: '#94a3b8',
-      borderWidth: 1,
-      borderDash:  [4, 4],
-      label: {
-        display:         true,
-        content:         labelText,
-        position:        'start',
-        backgroundColor: 'rgba(255,255,255,0.9)',
-        color:           '#1a1a2e',
-        font:            { size: 10 },
-        padding:         { x: 6, y: 3 }
-      }
-    };
-  }
-
-  return annotations;
+/* ── h2r — hex color to rgb components ──────────────────────────────────── */
+function h2r(h) {
+  const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(h);
+  return r
+    ? { r: parseInt(r[1],16), g: parseInt(r[2],16), b: parseInt(r[3],16) }
+    : { r: 55, g: 138, b: 221 };
 }
 
-/* ── Main entry point called from renderAll() in app.js ──────────────────
-   Signature: updateCharts(tradeRows, investmentRows, selectedCountriesArray)
-   - tradeRows: all filtered trade rows across selected countries (combined)
-   - investmentRows: all filtered investment event rows
-   - selectedCountriesArray: Array.from(selectedCountries)
-   countryColor() is defined in app.js (global).
+/* ── mSz — dot size scaled to investment value (in $M) ──────────────────── */
+function mSz(v) {
+  if (!v || isNaN(v)) return 5;
+  return Math.min(16, Math.max(6, Math.round(Math.sqrt(v / 9) * 1.9)));
+}
+
+/* ── getYearlyTotals ─────────────────────────────────────────────────────
+   Returns a 13-element array (2014–2026) of export totals in USD billions.
+   2026 is always null (no trade data). Values are null if year is missing.
    ──────────────────────────────────────────────────────────────────────── */
-function updateCharts(tradeRows, investmentRows, selectedCountriesArray) {
+function getYearlyTotals(country, tradeRows) {
+  const totals = {};
+  tradeRows.forEach(row => {
+    if (row.country === COUNTRY_MAP[country]) {
+      totals[row.year] = (totals[row.year] || 0) + (Number(row.export_value_usd) || 0);
+    }
+  });
+  return YRS.map(y => {
+    if (y === 2026) return null;
+    const v = totals[y];
+    return v ? v / 1e9 : null;
+  });
+}
 
-  var noDataEl        = document.getElementById('trade-no-data');
-  var lineContainerEl = document.getElementById('line-chart-container');
-  var barContainerEl  = document.getElementById('bar-chart-container');
+/* ── buildTrade ──────────────────────────────────────────────────────────
+   Creates the main trade line chart.
+   tradeRows:      filtered CSV rows for selected countries
+   investmentRows: filtered CSV investment rows (passed through for marker timeout)
+   countriesArray: ordered array of selected country names
+   isMulti:        true when compare mode with >1 country
+   ──────────────────────────────────────────────────────────────────────── */
+function buildTrade(tradeRows, investmentRows, countriesArray, isMulti) {
+  const ctx = document.getElementById('tradeC').getContext('2d');
+  if (tChart) { tChart.destroy(); tChart = null; }
 
-  /* Derive display label */
-  var countryLabel = selectedCountriesArray.length === 1
-    ? selectedCountriesArray[0]
-    : 'Combined Selection';
+  const single = countriesArray.length === 1;
 
-  /* ── No data path ──────────────────────────────────────────────────────── */
-  if (!tradeRows || tradeRows.length === 0) {
-    noDataEl.textContent       = 'No trade data available for ' + countryLabel;
-    noDataEl.style.display     = 'block';
-    lineContainerEl.style.display = 'none';
-    barContainerEl.style.display  = 'none';
+  const datasets = countriesArray.map(c => {
+    const clr = CC[c] || '#378ADD';
+    const { r, g, b } = h2r(clr);
+    const vals = getYearlyTotals(c, tradeRows);
+    return {
+      label: c,
+      data: YRS.map((y, i) => ({ x: y, y: vals[i] })),
+      borderColor: clr,
+      backgroundColor: single ? `rgba(${r},${g},${b},0.07)` : 'transparent',
+      fill: single,
+      borderWidth: 2,
+      pointRadius: YRS.map(y => y === 2026 ? 0 : (single ? 3 : 2.5)),
+      pointHoverRadius: 6,
+      pointBackgroundColor: clr,
+      tension: 0.3,
+      spanGaps: false
+    };
+  });
 
-    if (lineChart) { lineChart.destroy(); lineChart = null; }
-    if (barChart)  { barChart.destroy();  barChart  = null; }
+  tChart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          type: 'linear',
+          min: 2014,
+          max: 2026,
+          ticks: {
+            stepSize: 1,
+            callback: v => String(v),
+            font: { family: 'IBM Plex Mono', size: 10 },
+            color: '#96a1ae'
+          },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          border: { display: false }
+        },
+        y: {
+          ticks: {
+            callback: v => '$' + (Math.round(v * 100) / 100) + 'B',
+            font: { family: 'IBM Plex Mono', size: 10 },
+            color: '#96a1ae'
+          },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+          border: { display: false }
+        }
+      },
+      plugins: {
+        legend: {
+          display: !single,
+          position: 'top',
+          labels: {
+            font: { family: 'IBM Plex Sans', size: 10 },
+            boxWidth: 10, boxHeight: 10, padding: 12,
+            usePointStyle: true, pointStyle: 'circle'
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(13,27,42,0.9)',
+          titleFont: { family: 'IBM Plex Sans', size: 11, weight: '600' },
+          bodyFont:  { family: 'IBM Plex Mono', size: 11 },
+          padding: 10,
+          callbacks: {
+            title: i => String(i[0].parsed.x),
+            label: i => {
+              const v = i.parsed.y;
+              return v != null
+                ? ` ${i.dataset.label}: $${v.toFixed(2)}B`
+                : ` ${i.dataset.label}: no trade data`;
+            }
+          }
+        }
+      }
+    }
+  });
+
+  /* Delay marker render until Chart.js has computed chartArea */
+  const rowsSnap = investmentRows, arrSnap = countriesArray, multiSnap = isMulti;
+  setTimeout(() => buildMarkers(rowsSnap, arrSnap, multiSnap), 480);
+}
+
+/* ── buildMarkers ────────────────────────────────────────────────────────
+   Renders investment event dots onto the marker strip below the trade chart.
+   Only shown in single-country mode.
+   ──────────────────────────────────────────────────────────────────────── */
+function buildMarkers(investmentRows, countriesArray, isMulti) {
+  const inner = document.getElementById('msInner');
+  inner.innerHTML = '';
+
+  if (!tChart || !tChart.chartArea) {
+    document.getElementById('msDt').textContent = '';
     return;
   }
 
-  /* ── Data present — show charts ──────────────────────────────────────── */
-  noDataEl.style.display        = 'none';
-  lineContainerEl.style.display = 'block';
-  barContainerEl.style.display  = 'block';
-
-  /* ════════════════════════════════════════════════════════════════════════
-     LINE CHART — multi-dataset when >1 country selected
-     ════════════════════════════════════════════════════════════════════════ */
-  var yearRange  = [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
-  var yearLabels = yearRange.map(function(y) { return String(y); });
-
-  var newDatasets = [];
-
-  if (selectedCountriesArray.length === 1) {
-    /* Single country — one filled dataset */
-    var singleCountry = selectedCountriesArray[0];
-    var yearTotals = {};
-    for (var i = 0; i < tradeRows.length; i++) {
-      var row = tradeRows[i];
-      yearTotals[row.year] = (yearTotals[row.year] || 0) + (Number(row.export_value_usd) || 0);
-    }
-    newDatasets.push({
-      label:           singleCountry,
-      data:            yearRange.map(function(y) { return yearTotals[y] || 0; }),
-      borderColor:     countryColor(singleCountry),
-      backgroundColor: 'rgba(37,99,235,0.08)',
-      borderWidth:     2,
-      fill:            true,
-      pointRadius:     3,
-      tension:         0.3
-    });
-  } else {
-    /* Multiple countries — one line per country */
-    for (var ci = 0; ci < selectedCountriesArray.length; ci++) {
-      var c        = selectedCountriesArray[ci];
-      var tradeKey = COUNTRY_MAP[c];
-      var countryYearTotals = {};
-
-      for (var ri = 0; ri < tradeRows.length; ri++) {
-        var rr = tradeRows[ri];
-        if (rr.country === tradeKey) {
-          countryYearTotals[rr.year] = (countryYearTotals[rr.year] || 0) + (Number(rr.export_value_usd) || 0);
-        }
-      }
-
-      newDatasets.push({
-        label:           c,
-        data:            yearRange.map(function(y) { return countryYearTotals[y] || 0; }),
-        borderColor:     countryColor(c),
-        backgroundColor: 'transparent',
-        borderWidth:     2,
-        fill:            false,
-        pointRadius:     3,
-        tension:         0.3
-      });
-    }
+  if (isMulti) {
+    document.getElementById('msDt').textContent = 'Investment markers shown in single-country view';
+    return;
   }
 
-  var lineTitle  = 'Indiana Exports \u2014 ' + countryLabel + ' (USD)';
-  var showLegend = selectedCountriesArray.length > 1;
-  var annotations = buildAnnotations(investmentRows, selectedCountriesArray);
+  const country = countriesArray[0];
+  const invs = investmentRows.filter(r => r.parent_country === country);
 
-  if (lineChart) {
-    /* Update existing chart */
-    lineChart.data.labels                         = yearLabels;
-    lineChart.data.datasets                       = newDatasets;
-    lineChart.options.plugins.legend.display      = showLegend;
-    lineChart.options.plugins.title.text          = lineTitle;
-    lineChart.options.plugins.annotation          = { annotations: annotations };
-    lineChart.update();
-  } else {
-    /* Create new chart — always use datasets array structure */
-    var lineCtx = document.getElementById('lineChart').getContext('2d');
-    lineChart = new Chart(lineCtx, {
-      type: 'line',
-      data: {
-        labels:   yearLabels,
-        datasets: newDatasets
-      },
-      options: {
-        responsive:          true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: showLegend },
-          title: {
-            display: true,
-            text:    lineTitle
-          },
-          tooltip: {
-            callbacks: {
-              label: function(ctx) {
-                var prefix = ctx.dataset.label ? ctx.dataset.label + ': ' : '';
-                return prefix + fmtAxis(ctx.parsed.y);
-              }
-            }
-          },
-          annotation: { annotations: annotations }
-        },
-        scales: {
-          y: {
-            ticks: { callback: fmtAxis }
-          }
-        }
-      }
-    });
+  if (!invs.length) {
+    document.getElementById('msDt').textContent = 'No investment events recorded for this country.';
+    return;
   }
 
-  /* ════════════════════════════════════════════════════════════════════════
-     BAR CHART — top 10 commodities across all selected countries combined
-     ════════════════════════════════════════════════════════════════════════ */
+  document.getElementById('msDt').textContent = 'Hover a marker to see investment details';
 
-  var commodityTotals = {};
-  for (var j = 0; j < tradeRows.length; j++) {
-    var r2  = tradeRows[j];
-    var com = r2.commodity || '(unknown)';
-    commodityTotals[com] = (commodityTotals[com] || 0) + (Number(r2.export_value_usd) || 0);
-  }
+  const ca  = tChart.chartArea;
+  const pw  = ca.right - ca.left;
+  const ox  = ca.left;
+  const xPos = yr => ox + (yr - 2014) / 12 * pw;
+  const clr  = CC[country] || '#536070';
 
-  var commodityEntries = Object.keys(commodityTotals).map(function(k) {
-    return { label: k, value: commodityTotals[k] };
+  /* Horizontal baseline */
+  const al = document.createElement('div');
+  al.style.cssText = `position:absolute;top:16px;left:${ox}px;width:${pw}px;height:1px;background:#dde2ea`;
+  inner.appendChild(al);
+
+  /* Tick marks and year labels */
+  [2014,2016,2018,2020,2022,2024,2026].forEach(yr => {
+    const xp = xPos(yr);
+
+    const tk = document.createElement('div');
+    tk.style.cssText = `position:absolute;top:11px;left:${xp}px;width:1px;height:5px;background:#c8d3de;transform:translateX(-50%)`;
+    inner.appendChild(tk);
+
+    const lb = document.createElement('div');
+    lb.style.cssText = `position:absolute;top:19px;left:${xp}px;transform:translateX(-50%);font-family:IBM Plex Mono;font-size:9px;color:${yr===2026?'#BA7517':'#96a1ae'};white-space:nowrap`;
+    lb.textContent = yr === 2026 ? '2026*' : yr;
+    inner.appendChild(lb);
   });
-  commodityEntries.sort(function(a, b) { return b.value - a.value; });
-  var top10 = commodityEntries.slice(0, 10);
 
-  /* Strip leading HS chapter number */
-  var strippedLabels = top10.map(function(e) { return e.label.replace(/^\d+\s+/, ''); });
-  var topValues      = top10.map(function(e) { return e.value; });
+  /* Group events by year */
+  const byY = {};
+  invs.forEach(inv => {
+    const y = inv.announcement_year;
+    if (!byY[y]) byY[y] = [];
+    byY[y].push(inv);
+  });
 
-  /* Reverse so highest value appears at top in horizontal bar */
-  strippedLabels = strippedLabels.slice().reverse();
-  topValues      = topValues.slice().reverse();
+  Object.entries(byY).forEach(([yr, arr]) => {
+    const xp = xPos(parseInt(yr));
+    arr.forEach((inv, i) => {
+      const v  = parseFloat(inv.announced_value_usd_m);
+      const sz = mSz(isNaN(v) ? 0 : v);
 
-  var barTitle = 'Top Export Commodities \u2014 ' + countryLabel + ' (all years, USD)';
+      const el  = document.createElement('div');
+      el.className  = 'mmarker';
+      el.style.left = xp + 'px';
+      el.style.top  = '1px';
 
-  if (barChart) {
-    barChart.data.labels                      = strippedLabels;
-    barChart.data.datasets[0].data            = topValues;
-    barChart.data.datasets[0].backgroundColor = PALETTE;
-    barChart.options.plugins.title.text       = barTitle;
-    barChart.update();
-  } else {
-    var barCtx = document.getElementById('barChart').getContext('2d');
-    barChart = new Chart(barCtx, {
-      type: 'bar',
-      data: {
-        labels:   strippedLabels,
-        datasets: [{
-          data:            topValues,
-          backgroundColor: PALETTE
-        }]
-      },
-      options: {
-        indexAxis:           'y',
-        responsive:          true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          title: {
-            display: true,
-            text:    barTitle
-          },
-          tooltip: {
-            callbacks: {
-              label: function(ctx) { return fmtAxis(ctx.parsed.x); }
+      const dot = document.createElement('div');
+      dot.className   = 'mdot';
+      dot.style.cssText = `width:${sz}px;height:${sz}px;background:${clr};margin-top:${i * 13}px`;
+      el.appendChild(dot);
+
+      const loc    = [inv.city, inv.county ? inv.county + ' Co.' : ''].filter(Boolean).join(', ');
+      const valStr = isNaN(v) ? 'N/D' : (v >= 1000 ? '$' + (v/1000).toFixed(1) + 'B' : '$' + Math.round(v) + 'M');
+
+      el.onmouseenter = () => {
+        const dt = document.getElementById('msDt');
+        dt.textContent = `${inv.company_name} — ${valStr} — ${loc} — ${inv.operational_status || ''}`;
+        dt.style.color  = clr;
+      };
+      el.onmouseleave = () => {
+        const dt = document.getElementById('msDt');
+        dt.textContent = 'Hover a marker to see investment details';
+        dt.style.color  = '';
+      };
+
+      inner.appendChild(el);
+    });
+  });
+}
+
+/* ── buildCom ────────────────────────────────────────────────────────────
+   Creates the horizontal commodity bar chart.
+   Uses HS_GROUPS (defined in country-chart.js) to group raw HS categories.
+   Falls back to stripped raw commodity name if no HS group match found.
+   ──────────────────────────────────────────────────────────────────────── */
+function buildCom(tradeRows, countriesArray, isMulti) {
+  const ctx = document.getElementById('comC').getContext('2d');
+  if (cChart) { cChart.destroy(); cChart = null; }
+
+  /* Aggregate commodity totals (in USD billions) across selected countries */
+  const cats = {};
+  tradeRows.forEach(row => {
+    const raw = row.commodity || '(unknown)';
+
+    /* Try HS_GROUPS grouping if available (defined in country-chart.js) */
+    let cat;
+    if (typeof HS_GROUPS !== 'undefined') {
+      const hsNum = parseInt(raw, 10);
+      cat = HS_GROUPS[hsNum] || raw.replace(/^\d+\s+/, '') || '(unknown)';
+    } else {
+      cat = raw.replace(/^\d+\s+/, '') || '(unknown)';
+    }
+
+    cats[cat] = (cats[cat] || 0) + (Number(row.export_value_usd) || 0) / 1e9;
+  });
+
+  const sorted = Object.entries(cats).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const labels = sorted.map(x => x[0]);
+  const vals   = sorted.map(x => +x[1].toFixed(3));
+
+  const clr = isMulti ? '#536070' : (CC[countriesArray[0]] || '#536070');
+  const { r, g, b } = h2r(clr);
+
+  cChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: vals,
+        backgroundColor: vals.map((_, i) =>
+          i === 0 ? clr : `rgba(${r},${g},${b},${Math.max(0.22, 0.65 - i * 0.07)})`
+        ),
+        borderRadius: 3,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(13,27,42,0.9)',
+          callbacks: {
+            label: i => {
+              const v = i.parsed.x;
+              return v >= 1 ? ` $${v.toFixed(2)}B` : ` $${(v * 1000).toFixed(0)}M`;
             }
-          }
+          },
+          titleFont: { family: 'IBM Plex Sans', size: 11 },
+          bodyFont:  { family: 'IBM Plex Mono', size: 11 },
+          padding: 10
+        }
+      },
+      scales: {
+        x: {
+          ticks: {
+            callback: v => v >= 1 ? '$' + v.toFixed(1) + 'B' : '$' + (v * 1000).toFixed(0) + 'M',
+            font:  { family: 'IBM Plex Mono', size: 10 },
+            color: '#96a1ae'
+          },
+          grid:   { color: 'rgba(0,0,0,0.05)' },
+          border: { display: false }
         },
-        scales: {
-          x: {
-            ticks: { callback: fmtAxis }
-          }
+        y: {
+          ticks: { font: { family: 'IBM Plex Sans', size: 11 }, color: '#536070' },
+          grid:   { display: false },
+          border: { display: false }
         }
       }
-    });
-  }
+    }
+  });
 }
