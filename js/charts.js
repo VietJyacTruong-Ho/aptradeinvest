@@ -146,103 +146,158 @@ function buildTrade(tradeRows, investmentRows, countriesArray, isMulti) {
 }
 
 /* ── buildMarkers ────────────────────────────────────────────────────────
-   Renders investment event dots onto the marker strip below the trade chart.
+   Renders proportional year-bars onto the marker strip below the trade chart.
+   Each bar grows downward from the baseline; height is proportional to total
+   investment value for that year. A dot sits at the bottom of each bar.
+   Clicking a dot selects that year: bars to the right are hidden and an
+   inline investment list appears in the freed space.
    Only shown in single-country mode.
    ──────────────────────────────────────────────────────────────────────── */
 function buildMarkers(investmentRows, countriesArray, isMulti) {
-  const inner = document.getElementById('msInner');
+  var inner = document.getElementById('msInner');
+  var dt    = document.getElementById('msDt');
   inner.innerHTML = '';
 
   if (!tChart || !tChart.chartArea) {
-    document.getElementById('msDt').textContent = '';
+    dt.textContent = '';
     return;
   }
 
   if (isMulti) {
-    document.getElementById('msDt').textContent = 'Investment markers shown in single-country view';
+    dt.textContent = 'Investment markers shown in single-country view';
+    dt.style.color = '';
     return;
   }
 
-  const country = countriesArray[0];
-  const invs = investmentRows.filter(r => r.parent_country === country);
+  var country = countriesArray[0];
+  var invs = investmentRows.filter(function(r) { return r.parent_country === country; });
 
   if (!invs.length) {
-    document.getElementById('msDt').textContent = 'No investment events recorded for this country.';
+    dt.textContent = 'No investment events recorded for this country.';
+    dt.style.color = '';
     return;
   }
 
-  document.getElementById('msDt').textContent = 'Hover a marker to see investment details';
+  var ca   = tChart.chartArea;
+  var pw   = ca.right - ca.left;
+  var ox   = ca.left;
+  var xMin = tChart.options.scales.x.min != null ? tChart.options.scales.x.min : 2014;
+  var xMax = tChart.options.scales.x.max != null ? tChart.options.scales.x.max : 2026;
+  var xPos = function(yr) { return ox + (yr - xMin) / (xMax - xMin) * pw; };
+  var clr  = CC[country] || '#536070';
 
-  const ca   = tChart.chartArea;
-  const pw   = ca.right - ca.left;
-  const ox   = ca.left;
-  const xMin = tChart.options.scales.x.min != null ? tChart.options.scales.x.min : 2014;
-  const xMax = tChart.options.scales.x.max != null ? tChart.options.scales.x.max : 2026;
-  const xPos = yr => ox + (yr - xMin) / (xMax - xMin) * pw;
-  const clr  = CC[country] || '#536070';
-
-  /* Horizontal baseline */
-  const al = document.createElement('div');
-  al.style.cssText = `position:absolute;top:16px;left:${ox}px;width:${pw}px;height:1px;background:#dde2ea`;
-  inner.appendChild(al);
-
-  /* Tick marks and year labels — only within visible range */
-  [2014,2016,2018,2020,2022,2024,2026].filter(yr => yr >= xMin && yr <= xMax).forEach(yr => {
-    const xp = xPos(yr);
-
-    const tk = document.createElement('div');
-    tk.style.cssText = `position:absolute;top:11px;left:${xp}px;width:1px;height:5px;background:#c8d3de;transform:translateX(-50%)`;
-    inner.appendChild(tk);
-
-    const lb = document.createElement('div');
-    lb.style.cssText = `position:absolute;top:19px;left:${xp}px;transform:translateX(-50%);font-family:IBM Plex Mono;font-size:9px;color:${yr===2026?'#BA7517':'#96a1ae'};white-space:nowrap`;
-    lb.textContent = yr === 2026 ? '2026*' : yr;
-    inner.appendChild(lb);
+  /* Group investments by year, summing values */
+  var byY = {};
+  invs.forEach(function(inv) {
+    var y = parseInt(inv.announcement_year);
+    if (isNaN(y) || y < xMin || y > xMax) return;
+    if (!byY[y]) byY[y] = { total: 0, invs: [] };
+    var v = parseFloat(inv.announced_value_usd_m);
+    if (!isNaN(v)) byY[y].total += v;
+    byY[y].invs.push(inv);
   });
 
-  /* Group events by year */
-  const byY = {};
-  invs.forEach(inv => {
-    const y = inv.announcement_year;
-    if (!byY[y]) byY[y] = [];
-    byY[y].push(inv);
+  var years = Object.keys(byY).map(Number).sort(function(a, b) { return a - b; });
+
+  if (!years.length) {
+    dt.textContent = 'No investment events in this date range.';
+    dt.style.color = '';
+    return;
+  }
+
+  var maxTotal  = Math.max.apply(null, years.map(function(y) { return byY[y].total || 1; }));
+  var innerH    = inner.offsetHeight || 68;
+  var maxBarH   = innerH - 12;  /* reserve 12px at bottom for dot overflow */
+  var minBarH   = 6;            /* minimum visible bar even for zero-value events */
+  var selYr     = typeof selectedMarkerYear !== 'undefined' ? selectedMarkerYear : null;
+
+  /* Update detail text */
+  if (selYr && byY[selYr]) {
+    dt.textContent = selYr + ' \u2014 click dot again to clear';
+    dt.style.color = clr;
+  } else {
+    dt.textContent = 'Click a dot to explore investment events by year';
+    dt.style.color = '';
+  }
+
+  /* Horizontal baseline at top */
+  var baseline = document.createElement('div');
+  baseline.style.cssText = 'position:absolute;top:0;left:' + ox + 'px;width:' + pw + 'px;height:1px;background:#dde2ea;';
+  inner.appendChild(baseline);
+
+  /* Draw bars and dots for each year */
+  years.forEach(function(yr) {
+    /* When a year is selected, hide bars strictly to the right */
+    if (selYr !== null && yr > selYr) return;
+
+    var xp   = xPos(yr);
+    var data = byY[yr];
+    var barH = data.total > 0
+      ? Math.max(minBarH, Math.round(data.total / maxTotal * maxBarH))
+      : minBarH;
+    var isSelected = (selYr === yr);
+
+    /* Vertical bar — starts at top (baseline), grows downward */
+    var bar = document.createElement('div');
+    bar.style.cssText = 'position:absolute;left:' + xp + 'px;top:0;width:2px;height:' + barH + 'px;'
+      + 'background:' + clr + ';transform:translateX(-50%);border-radius:0 0 2px 2px;'
+      + 'opacity:' + (isSelected ? '1' : '0.55') + ';';
+    inner.appendChild(bar);
+
+    /* Dot at the bottom of the bar */
+    var dotSz  = isSelected ? 10 : 8;
+    var dotTop = barH;
+    var dot    = document.createElement('div');
+    dot.style.cssText = 'position:absolute;left:' + xp + 'px;top:' + dotTop + 'px;'
+      + 'width:' + dotSz + 'px;height:' + dotSz + 'px;border-radius:50%;'
+      + 'background:' + (isSelected ? clr : '#fff') + ';border:2px solid ' + clr + ';'
+      + 'transform:translate(-50%,-50%);cursor:pointer;z-index:4;'
+      + 'box-shadow:0 1px 4px rgba(0,0,0,.18);transition:transform .12s;';
+
+    /* Tooltip on hover */
+    var totalStr = data.total > 0
+      ? (data.total >= 1000 ? '$' + (data.total / 1000).toFixed(1) + 'B' : '$' + Math.round(data.total) + 'M')
+      : 'N/D';
+    dot.title = yr + ' \u2014 ' + data.invs.length + ' event' + (data.invs.length > 1 ? 's' : '') + ', ' + totalStr;
+
+    dot.onmouseenter = function() { this.style.transform = 'translate(-50%,-50%) scale(1.4)'; };
+    dot.onmouseleave = function() { this.style.transform = 'translate(-50%,-50%) scale(1)'; };
+
+    var capturedYr = yr;
+    dot.onclick = function() {
+      setSelectedMarkerYear(selYr === capturedYr ? null : capturedYr);
+    };
+
+    inner.appendChild(dot);
   });
 
-  Object.entries(byY).forEach(([yr, arr]) => {
-    const yrN = parseInt(yr);
-    if (yrN < xMin || yrN > xMax) return;
-    const xp = xPos(yrN);
-    arr.forEach((inv, i) => {
-      const v  = parseFloat(inv.announced_value_usd_m);
-      const sz = mSz(isNaN(v) ? 0 : v);
+  /* When a year is selected, show inline investment list to the right of the dot */
+  if (selYr !== null && byY[selYr]) {
+    var selXp      = xPos(selYr);
+    var listLeft   = selXp + 12;
+    var listWidth  = Math.max(0, (ox + pw) - listLeft - 4);
+    if (listWidth > 60) {
+      var listData   = byY[selYr];
+      var listBarH   = listData.total > 0
+        ? Math.max(minBarH, Math.round(listData.total / maxTotal * maxBarH))
+        : minBarH;
 
-      const el  = document.createElement('div');
-      el.className  = 'mmarker';
-      el.style.left = xp + 'px';
-      el.style.top  = '1px';
+      var list = document.createElement('div');
+      list.style.cssText = 'position:absolute;left:' + listLeft + 'px;top:2px;'
+        + 'width:' + listWidth + 'px;max-height:' + (listBarH + 8) + 'px;'
+        + 'overflow:hidden;font-family:IBM Plex Mono;font-size:9.5px;color:' + clr + ';line-height:1.5;';
 
-      const dot = document.createElement('div');
-      dot.className   = 'mdot';
-      dot.style.cssText = `width:${sz}px;height:${sz}px;background:${clr};margin-top:${i * 13}px`;
-      el.appendChild(dot);
+      var rows = listData.invs.map(function(inv) {
+        var v      = parseFloat(inv.announced_value_usd_m);
+        var valStr = isNaN(v) ? 'N/D' : (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'B' : '$' + Math.round(v) + 'M');
+        return '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+          + inv.company_name + ' \u00b7 ' + valStr + '</div>';
+      });
 
-      const loc    = [inv.city, inv.county ? inv.county + ' Co.' : ''].filter(Boolean).join(', ');
-      const valStr = isNaN(v) ? 'N/D' : (v >= 1000 ? '$' + (v/1000).toFixed(1) + 'B' : '$' + Math.round(v) + 'M');
-
-      el.onmouseenter = () => {
-        const dt = document.getElementById('msDt');
-        dt.textContent = `${inv.company_name} — ${valStr} — ${loc} — ${inv.operational_status || ''}`;
-        dt.style.color  = clr;
-      };
-      el.onmouseleave = () => {
-        const dt = document.getElementById('msDt');
-        dt.textContent = 'Hover a marker to see investment details';
-        dt.style.color  = '';
-      };
-
-      inner.appendChild(el);
-    });
-  });
+      list.innerHTML = rows.join('');
+      inner.appendChild(list);
+    }
+  }
 }
 
 /* ── buildCom ────────────────────────────────────────────────────────────

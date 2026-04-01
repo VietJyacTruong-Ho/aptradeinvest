@@ -60,6 +60,9 @@ var presenceData   = [];
 /* ── Year range state — shared by slider UI and chart scale ─────────────── */
 var yrState = { min: 2014, max: 2026 };
 
+/* ── Marker year selection state ─────────────────────────────────────────── */
+var selectedMarkerYear = null;
+
 /* ── formatValue — $M / $B formatter ────────────────────────────────────── */
 function formatValue(millionsFloat) {
   if (millionsFloat == null || isNaN(millionsFloat)) return 'N/D';
@@ -173,6 +176,29 @@ function initYearSlider() {
   updateSliderUI();
   attachHandleDrag(document.getElementById('yrTop'), true);
   attachHandleDrag(document.getElementById('yrBot'), false);
+}
+
+/* ── setSelectedMarkerYear — called by buildMarkers dot click ────────────── */
+function setSelectedMarkerYear(yr) {
+  selectedMarkerYear = yr;
+  var invRows = investmentData.filter(function(r) {
+    return sel.indexOf(r.parent_country) !== -1;
+  });
+  buildMarkers(invRows, sel, compareMode && sel.length > 1);
+  if (yr != null) scrollCardsToYear(yr);
+}
+
+/* ── scrollCardsToYear — scrolls right panel to the year's card group ────── */
+function scrollCardsToYear(yr) {
+  var cont = document.getElementById('cards');
+  if (!cont) return;
+  var labels = cont.querySelectorAll('.ylbl');
+  for (var i = 0; i < labels.length; i++) {
+    if (String(labels[i].textContent).trim() === String(yr)) {
+      cont.scrollTop = labels[i].offsetTop - 4;
+      return;
+    }
+  }
 }
 
 /* ── renderPills ──────────────────────────────────────────────────────────── */
@@ -373,6 +399,7 @@ function buildCards(filteredInvestment) {
 
 /* ── update — single entry point for all view updates ───────────────────── */
 function update() {
+  selectedMarkerYear = null;
   var multi = compareMode && sel.length > 1;
   var lbl   = multi ? sel.length + ' Countries' : sel[0];
 
