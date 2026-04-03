@@ -90,6 +90,33 @@ function normalizeStatus(s) {
   return s;
 }
 
+/* ── Overlay helpers — loading / error states ────────────────────────────── */
+function showOverlay(html) {
+  var ov = document.getElementById('mcOverlay');
+  if (!ov) return;
+  ov.innerHTML = html;
+  ov.style.display = 'flex';
+}
+
+function hideOverlay() {
+  var ov = document.getElementById('mcOverlay');
+  if (ov) ov.style.display = 'none';
+}
+
+function showErrorOverlay(detail) {
+  showOverlay(
+    '<div class="ov-error">' +
+      '<div class="ov-error-icon">⚠</div>' +
+      '<div class="ov-error-title">Data failed to load</div>' +
+      '<div class="ov-error-msg">' +
+        (detail ? detail + ' — ' : '') +
+        'Check your connection and try again.' +
+      '</div>' +
+      '<button class="ov-retry" onclick="location.reload()">Retry</button>' +
+    '</div>'
+  );
+}
+
 /* ── Year-range slider ───────────────────────────────────────────────────────
    A vertical two-handle slider that controls the visible x-axis range.
    Injected into .tc (trade chart container) on init.
@@ -111,8 +138,26 @@ function updateSliderUI() {
   botH.style.top    = bp + '%';
   fill.style.top    = tp + '%';
   fill.style.height = (bp - tp) + '%';
-  topH.setAttribute('title', yrState.min);
-  botH.setAttribute('title', yrState.max);
+  topH.setAttribute('title', 'Start year: ' + yrState.min + ' (drag to change)');
+  botH.setAttribute('title', 'End year: '   + yrState.max + ' (drag to change)');
+
+  /* Update dynamic year range display in chart subtitle */
+  var rangeEl = document.getElementById('yrRangeDisplay');
+  if (rangeEl) {
+    var isDefault = (yrState.min === 2014 && yrState.max === 2026);
+    rangeEl.innerHTML = yrState.min + '\u2013' + yrState.max +
+      (!isDefault
+        ? ' \u00b7 <button class="yr-reset" onclick="resetYearRange()" title="Reset to full range (2014\u20132026)">reset</button>'
+        : '');
+  }
+}
+
+/* ── resetYearRange — restores default 2014–2026 range ──────────────────── */
+function resetYearRange() {
+  yrState.min = 2014;
+  yrState.max = 2026;
+  updateSliderUI();
+  applyYearRange();
 }
 
 function applyYearRange() {
@@ -131,34 +176,54 @@ function applyYearRange() {
 }
 
 function attachHandleDrag(handle, isTop) {
+  /* Shared drag logic for both mouse and touch */
+  function performDrag(clientY) {
+    var track = document.getElementById('yrTrack');
+    var rect  = track.getBoundingClientRect();
+    var frac  = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    var yr    = Math.round(2014 + frac * 12);
+    yr = Math.max(2014, Math.min(2026, yr));
+    if (isTop) {
+      yrState.min = Math.min(yr, yrState.max - 1);
+    } else {
+      yrState.max = Math.max(yr, yrState.min + 1);
+    }
+    updateSliderUI();
+    applyYearRange();
+  }
+
+  /* Mouse */
   handle.addEventListener('mousedown', function(e) {
     e.preventDefault();
     handle.classList.add('dragging');
-
-    function onMove(mv) {
-      var track = document.getElementById('yrTrack');
-      var rect  = track.getBoundingClientRect();
-      var frac  = Math.max(0, Math.min(1, (mv.clientY - rect.top) / rect.height));
-      var yr    = Math.round(2014 + frac * 12);
-      yr = Math.max(2014, Math.min(2026, yr));
-      if (isTop) {
-        yrState.min = Math.min(yr, yrState.max - 1);
-      } else {
-        yrState.max = Math.max(yr, yrState.min + 1);
-      }
-      updateSliderUI();
-      applyYearRange();
-    }
-
+    function onMove(mv) { performDrag(mv.clientY); }
     function onUp() {
       handle.classList.remove('dragging');
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup',   onUp);
     }
-
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup',   onUp);
   });
+
+  /* Touch */
+  handle.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    handle.classList.add('dragging');
+    var t = e.touches[0];
+    if (t) performDrag(t.clientY);
+    function onMove(mv) {
+      var touch = mv.touches[0];
+      if (touch) performDrag(touch.clientY);
+    }
+    function onUp() {
+      handle.classList.remove('dragging');
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend',  onUp);
+    }
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend',  onUp);
+  }, { passive: false });
 }
 
 function initYearSlider() {
@@ -166,11 +231,13 @@ function initYearSlider() {
   if (!tc) return;
   var sl = document.createElement('div');
   sl.className = 'yr-range-slider';
+  sl.setAttribute('title', 'Drag handles to filter the visible year range');
+  sl.setAttribute('aria-label', 'Year range filter');
   sl.innerHTML =
     '<div class="yr-track" id="yrTrack">' +
       '<div class="yr-range-fill" id="yrFill"></div>' +
-      '<div class="yr-handle" id="yrTop"  title="' + yrState.min + '"></div>' +
-      '<div class="yr-handle" id="yrBot"  title="' + yrState.max + '"></div>' +
+      '<div class="yr-handle" id="yrTop" title="Start year: ' + yrState.min + ' (drag to change)"></div>' +
+      '<div class="yr-handle" id="yrBot" title="End year: '   + yrState.max + ' (drag to change)"></div>' +
     '</div>';
   tc.insertBefore(sl, tc.firstChild);
   updateSliderUI();
@@ -296,29 +363,17 @@ function updateHeadlineStats(tradeRows, investmentRows, presenceRows) {
     '</div>' +
     '<div class="hstat-div"></div>' +
     '<div class="hstat-section">' +
-      '<span class="hstat-lbl hstat-fdi">FDI</span>' +
+      '<span class="hstat-lbl hstat-fdi" title="Foreign Direct Investment \u2014 Asia-Pacific company investment into Indiana">FDI</span>' +
       '<div class="hstat-item"><span class="headline-stat-value">' + investDisplay + '</span><span class="headline-stat-label">Announced Investment</span></div>' +
-      '<div class="hstat-item"><span class="headline-stat-value">' + investmentRows.length + '</span><span class="headline-stat-label">Events</span></div>' +
+      '<div class="hstat-item"><span class="headline-stat-value">' + investmentRows.length + '</span><span class="headline-stat-label">Announcements</span></div>' +
       '<div class="hstat-item"><span class="headline-stat-value">' + jobsDisplay + '</span><span class="headline-stat-label">Announced Jobs</span></div>' +
-      '<div class="hstat-item hstat-item-last"><span class="headline-stat-value">' + facilitiesDisplay + '</span><span class="headline-stat-label">Known Facilities</span></div>' +
+      '<div class="hstat-item hstat-item-last"><span class="headline-stat-value">' + facilitiesDisplay + '</span><span class="headline-stat-label" title="Verified Asia-Pacific company facilities currently operating in Indiana">Known Facilities</span></div>' +
     '</div>';
 }
 
 /* ── buildCards — renders investment card panel ──────────────────────────── */
 function buildCards(filteredInvestment) {
   var multi = sel.length > 1;
-
-  /* Mini stats in right-panel header */
-  var tv = 0, tj = 0;
-  filteredInvestment.forEach(function(i) {
-    var v = parseFloat(i.announced_value_usd_m);
-    if (!isNaN(v)) tv += v;
-    var j = parseFloat(i.jobs);
-    if (!isNaN(j)) tj += j;
-  });
-  document.getElementById('ipT').textContent = tv > 0 ? formatValue(tv) : '—';
-  document.getElementById('ipE').textContent = filteredInvestment.length || '—';
-  document.getElementById('ipJ').textContent = tj > 0 ? Math.round(tj).toLocaleString() : '—';
   document.getElementById('rpSub').textContent = 'Showing: ' + (multi ? sel.join(', ') : sel[0]);
 
   var cont = document.getElementById('cards');
@@ -326,7 +381,7 @@ function buildCards(filteredInvestment) {
   if (!filteredInvestment.length) {
     cont.innerHTML =
       '<div class="empty">' +
-        '<p>No investment events recorded</p>' +
+        '<p>No investment announcements recorded</p>' +
         '<p class="empty-sub">Strong trade partner with no traceable FDI above the $2M threshold. ' +
         'This asymmetry may represent an investment attraction opportunity for APBAI.</p>' +
       '</div>';
@@ -470,8 +525,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     update();
+    hideOverlay();
   })
   .catch(function(err) {
     console.error('Failed to load CSV data:', err);
+    showErrorOverlay(err && err.message ? err.message : null);
   });
 });

@@ -16,7 +16,6 @@
   </div>
   <div class="hdr-r">
     <span class="hdr-user">Viet Jyac Truong-Ho</span>
-    <span class="hdr-org">APBAI</span>
   </div>
 </header>
 
@@ -27,27 +26,32 @@
 </div>
 
 <div class="sbar">
-  <div class="ssec">
-    <div class="slbl t">Trade</div>
-    <div class="si"><div class="siv" id="sTotalEx">—</div><div class="sil">Total Exports 2014–2025</div></div>
-    <div class="si"><div class="siv" id="sGrowth">—</div><div class="sil">Growth vs. 2014 baseline</div></div>
+  <div class="hstat-section">
+    <span class="hstat-lbl hstat-trade">Trade</span>
+    <div class="hstat-item"><span class="headline-stat-value">—</span><span class="headline-stat-label">Total Exports (2014–2025)</span></div>
+    <div class="hstat-item"><span class="headline-stat-value">—</span><span class="headline-stat-label">Export Growth</span><span class="headline-stat-sublabel">vs. 2014 baseline</span></div>
   </div>
-  <div class="sdiv"></div>
-  <div class="ssec">
-    <div class="slbl f">FDI</div>
-    <div class="si"><div class="siv" id="sTotalInv">—</div><div class="sil">Announced Investment</div></div>
-    <div class="si"><div class="siv" id="sEvents">—</div><div class="sil">Events</div></div>
-    <div class="si"><div class="siv" id="sJobs">—</div><div class="sil">Announced Jobs</div></div>
-    <div class="si" style="border-right:none"><div class="siv" id="sFac">—</div><div class="sil">Known Facilities</div></div>
+  <div class="hstat-div"></div>
+  <div class="hstat-section">
+    <span class="hstat-lbl hstat-fdi" title="Foreign Direct Investment — Asia-Pacific company investment into Indiana">FDI</span>
+    <div class="hstat-item"><span class="headline-stat-value">—</span><span class="headline-stat-label">Announced Investment</span></div>
+    <div class="hstat-item"><span class="headline-stat-value">—</span><span class="headline-stat-label">Announcements</span></div>
+    <div class="hstat-item"><span class="headline-stat-value">—</span><span class="headline-stat-label">Announced Jobs</span></div>
+    <div class="hstat-item hstat-item-last"><span class="headline-stat-value">—</span><span class="headline-stat-label" title="Verified Asia-Pacific company facilities currently operating in Indiana">Known Facilities</span></div>
   </div>
 </div>
 
 <div class="mc">
+  <div id="mcOverlay">
+    <div class="ov-spinner"></div>
+    <span class="ov-txt">Loading data…</span>
+  </div>
   <div class="lp">
     <div class="ph">
       <div>
         <div class="pt">Indiana Exports — <span id="chartLbl" style="color:#378ADD">Japan</span></div>
-        <div class="psub">Annual export value, USD billions · 2014–2026 &nbsp;<span style="color:#BA7517;font-size:9.5px">* 2026 announced investment only; trade data through 2025</span></div>
+        <div class="psub">Annual export value, USD billions · <span id="yrRangeDisplay">2014–2026</span></div>
+        <div class="chart-note">2026 shows announced investment only — trade figures run through 2025</div>
       </div>
       <label class="cmpr-wrap">
         <input type="checkbox" id="cmprChk">
@@ -57,7 +61,7 @@
     <div class="tc"><canvas id="tradeC"></canvas></div>
     <div class="ms">
       <div class="ms-inner" id="msInner"></div>
-      <div class="ms-detail"><span class="ms-dt" id="msDt">Hover a marker to see investment details</span></div>
+      <div class="ms-detail"><span class="ms-dt" id="msDt">Click a dot to filter investments by year</span></div>
     </div>
     <div class="comsec">
       <div class="sec-hdr">Top export commodities — <span id="comLbl">Japan</span>, 2014–2025 aggregate</div>
@@ -69,11 +73,6 @@
     <div class="rp-hdr">
       <div class="rpt">Asia-Pacific Investment in Indiana</div>
       <div class="rpst" id="rpSub">Showing: Japan</div>
-      <div class="ipstats">
-        <div class="ipstat"><div class="ipsv" id="ipT">—</div><div class="ipsl">Announced</div></div>
-        <div class="ipstat"><div class="ipsv" id="ipE">—</div><div class="ipsl">Events</div></div>
-        <div class="ipstat"><div class="ipsv" id="ipJ">—</div><div class="ipsl">Jobs</div></div>
-      </div>
     </div>
     <div class="cards-wrap" id="cards"></div>
   </div>

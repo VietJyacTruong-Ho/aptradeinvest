@@ -9,6 +9,22 @@ var cChart = null;
 
 const YRS = [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025,2026];
 
+/* ── Stable categorical colors for the commodity bar chart ──────────────────
+   Keyed by the display category names defined in HS_GROUPS (country-chart.js).
+   Using stable names means colors persist across country switches and year
+   range changes, so users can track categories visually.
+   ──────────────────────────────────────────────────────────────────────── */
+var CC_CAT = {
+  'Pharmaceuticals':   '#1655a2',  /* institutional blue — Indiana's dominant sector */
+  'Chemicals':         '#2D7D54',  /* teal-green */
+  'Plastics & Rubber': '#9A6B1F',  /* warm amber-brown */
+  'Electronics':       '#5E4FA0',  /* violet */
+  'Metals':            '#566F7D',  /* steel blue-gray */
+  'Agric. & Food':     '#3A7A48',  /* forest green */
+  'Machinery':         '#2B80B5',  /* sky blue */
+  'Other':             '#8E9EAD',  /* cool gray */
+};
+
 /* ── fmtAxis — kept for country-chart.js compatibility ───────────────────── */
 function fmtAxis(value) {
   if (value >= 1e9) return '$' + (value / 1e9).toFixed(1) + 'B';
@@ -164,7 +180,7 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
   }
 
   if (isMulti) {
-    dt.textContent = 'Investment markers shown in single-country view';
+    dt.textContent = 'Switch to a single country to explore investment markers';
     dt.style.color = '';
     return;
   }
@@ -173,7 +189,7 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
   var invs = investmentRows.filter(function(r) { return r.parent_country === country; });
 
   if (!invs.length) {
-    dt.textContent = 'No investment events recorded for this country.';
+    dt.textContent = 'No investment announcements recorded for this country.';
     dt.style.color = '';
     return;
   }
@@ -200,7 +216,7 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
   var years = Object.keys(byY).map(Number).sort(function(a, b) { return a - b; });
 
   if (!years.length) {
-    dt.textContent = 'No investment events in this date range.';
+    dt.textContent = 'No investment announcements in this date range.';
     dt.style.color = '';
     return;
   }
@@ -213,10 +229,10 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
 
   /* Update detail text */
   if (selYr && byY[selYr]) {
-    dt.textContent = selYr + ' \u2014 click dot again to clear';
+    dt.textContent = selYr + ' selected \u2014 click dot again to clear';
     dt.style.color = clr;
   } else {
-    dt.textContent = 'Click a dot to explore investment events by year';
+    dt.textContent = 'Click a dot to filter investments by year';
     dt.style.color = '';
   }
 
@@ -258,7 +274,7 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
     var totalStr = data.total > 0
       ? (data.total >= 1000 ? '$' + (data.total / 1000).toFixed(1) + 'B' : '$' + Math.round(data.total) + 'M')
       : 'N/D';
-    dot.title = yr + ' \u2014 ' + data.invs.length + ' event' + (data.invs.length > 1 ? 's' : '') + ', ' + totalStr;
+    dot.title = yr + ' \u2014 ' + data.invs.length + ' announcement' + (data.invs.length > 1 ? 's' : '') + ', ' + totalStr;
 
     dot.onmouseenter = function() { this.style.transform = 'translate(-50%,-50%) scale(1.4)'; };
     dot.onmouseleave = function() { this.style.transform = 'translate(-50%,-50%) scale(1)'; };
@@ -285,7 +301,7 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
       var list = document.createElement('div');
       list.style.cssText = 'position:absolute;left:' + listLeft + 'px;top:2px;'
         + 'width:' + listWidth + 'px;max-height:' + (listBarH + 8) + 'px;'
-        + 'overflow:hidden;font-family:IBM Plex Mono;font-size:9.5px;color:' + clr + ';line-height:1.5;';
+        + 'overflow:hidden;font-family:IBM Plex Mono;font-size:10px;color:' + clr + ';line-height:1.5;';
 
       var rows = listData.invs.map(function(inv) {
         var v      = parseFloat(inv.announced_value_usd_m);
@@ -330,18 +346,15 @@ function buildCom(tradeRows, countriesArray, isMulti) {
   const labels = sorted.map(x => x[0]);
   const vals   = sorted.map(x => +x[1].toFixed(3));
 
-  const clr = isMulti ? '#536070' : (CC[countriesArray[0]] || '#536070');
-  const { r, g, b } = h2r(clr);
-
   cChart = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
         data: vals,
-        backgroundColor: vals.map((_, i) =>
-          i === 0 ? clr : `rgba(${r},${g},${b},${Math.max(0.22, 0.65 - i * 0.07)})`
-        ),
+        backgroundColor: labels.map(function(lbl) {
+          return CC_CAT[lbl] || '#96a1ae';
+        }),
         borderRadius: 3,
         borderSkipped: false
       }]
