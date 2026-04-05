@@ -103,6 +103,13 @@ function buildTrade(tradeRows, investmentRows, countriesArray, isMulti) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      onClick: function(e, elements) {
+        if (!elements.length) return;
+        var yr = YRS[elements[0].index];
+        if (!yr || yr === 2026) return;
+        var current = typeof selectedMarkerYear !== 'undefined' ? selectedMarkerYear : null;
+        setSelectedMarkerYear(current === yr ? null : yr);
+      },
       scales: {
         x: {
           type: 'linear',
@@ -152,6 +159,9 @@ function buildTrade(tradeRows, investmentRows, countriesArray, isMulti) {
             }
           }
         }
+      },
+      onHover: function(e, elements) {
+        e.native.target.style.cursor = elements.length ? 'pointer' : 'default';
       }
     }
   });
@@ -241,10 +251,17 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
   baseline.style.cssText = 'position:absolute;top:0;left:' + ox + 'px;width:' + pw + 'px;height:1px;background:#dde2ea;';
   inner.appendChild(baseline);
 
+  /* Pre-compute flip direction so bar hiding and list placement stay in sync */
+  var flipLeft = false;
+  if (selYr !== null && byY[selYr]) {
+    var selXpPre = xPos(selYr);
+    flipLeft = (selXpPre - ox - 14) > ((ox + pw) - selXpPre - 14);
+  }
+
   /* Draw bars and dots for each year */
   years.forEach(function(yr) {
-    /* When a year is selected, hide bars strictly to the right */
-    if (selYr !== null && yr > selYr) return;
+    /* Hide bars on whichever side the list will render into */
+    if (selYr !== null && (flipLeft ? yr < selYr : yr > selYr)) return;
 
     var xp   = xPos(yr);
     var data = byY[yr];
@@ -293,7 +310,6 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
     var selXp      = xPos(selYr);
     var spaceRight = (ox + pw) - selXp - 14;
     var spaceLeft  = selXp - ox - 14;
-    var flipLeft   = spaceLeft > spaceRight;
     var listWidth  = Math.max(0, flipLeft ? spaceLeft : spaceRight);
 
     if (listWidth > 60) {
@@ -306,7 +322,8 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
       var list = document.createElement('div');
       list.style.cssText = 'position:absolute;left:' + listLeft + 'px;top:2px;'
         + 'width:' + listWidth + 'px;max-height:' + (listBarH + 8) + 'px;'
-        + 'overflow:hidden;font-family:IBM Plex Mono;font-size:10px;color:' + clr + ';line-height:1.5;';
+        + 'overflow:hidden;font-family:IBM Plex Mono;font-size:10px;color:' + clr + ';line-height:1.5;'
+        + (flipLeft ? 'text-align:right;' : '');
 
       var rows = listData.invs.map(function(inv) {
         var v      = parseFloat(inv.announced_value_usd_m);
