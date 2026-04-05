@@ -9,7 +9,7 @@
    ──────────────────────────────────────────────────────────────────────── */
 var COUNTRY_MAP = {
   'Japan':       'Japan',
-  'South Korea': 'Korea, South',
+  'South Korea': 'South Korea',
   'China':       'China',
   'India':       'India',
   'Australia':   'Australia',
@@ -20,7 +20,9 @@ var COUNTRY_MAP = {
   'Indonesia':   'Indonesia',
   'Malaysia':    'Malaysia',
   'Philippines': 'Philippines',
-  'Hong Kong':   'Hong Kong'
+  'Hong Kong':   'Hong Kong',
+  'New Zealand': 'New Zealand',
+  'Sri Lanka':   'Sri Lanka'
 };
 
 /* ── Country colour map (used by charts.js and pill rendering) ──────────── */
@@ -37,14 +39,16 @@ var CC = {
   'Indonesia':   '#0F6E56',
   'Malaysia':    '#993C1D',
   'Philippines': '#185FA5',
-  'Hong Kong':   '#993556'
+  'Hong Kong':   '#993556',
+  'New Zealand': '#2A8C6E',
+  'Sri Lanka':   '#B5600F'
 };
 
 /* ── Region grouping ─────────────────────────────────────────────────────── */
 var REGIONS = {
   'Northeast Asia':    ['Japan', 'South Korea', 'China', 'Taiwan', 'Hong Kong'],
   'Southeast Asia':    ['Vietnam', 'Thailand', 'Indonesia', 'Malaysia', 'Philippines', 'Singapore'],
-  'South Asia & Pacific': ['India', 'Australia']
+  'South Asia & Pacific': ['India', 'Australia', 'New Zealand', 'Sri Lanka']
 };
 
 /* ── Selection state ─────────────────────────────────────────────────────── */
@@ -262,7 +266,12 @@ function scrollCardsToYear(yr) {
   var labels = cont.querySelectorAll('.ylbl');
   for (var i = 0; i < labels.length; i++) {
     if (String(labels[i].textContent).trim() === String(yr)) {
-      cont.scrollTop = labels[i].offsetTop - 4;
+      /* Use getBoundingClientRect so the offset is relative to the visible
+         top of #cards, not the document — offsetTop alone overshoots because
+         .cards-wrap has no position set and isn't the offsetParent. */
+      var labelRect = labels[i].getBoundingClientRect();
+      var contRect  = cont.getBoundingClientRect();
+      cont.scrollTop += labelRect.top - contRect.top - 8;
       return;
     }
   }
