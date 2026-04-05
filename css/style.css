@@ -386,6 +386,8 @@ body {
 @keyframes fu { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .icard:hover { box-shadow: 0 2px 8px rgba(13,27,42,.07); }
 .ic-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 1px; line-height: 1.3; }
+.ic-name-link { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--hint); }
+.ic-name-link:hover { border-bottom-color: var(--text); }
 .ic-loc  { font-size: 10px; color: var(--hint); margin-bottom: 2px; }
 .ic-sec  { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
 .ic-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }

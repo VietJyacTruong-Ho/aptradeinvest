@@ -287,16 +287,21 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
     inner.appendChild(dot);
   });
 
-  /* When a year is selected, show inline investment list to the right of the dot */
+  /* When a year is selected, show inline investment list beside the dot.
+     Flip to the left side when there's more room there (avoids right-edge cutoff). */
   if (selYr !== null && byY[selYr]) {
     var selXp      = xPos(selYr);
-    var listLeft   = selXp + 12;
-    var listWidth  = Math.max(0, (ox + pw) - listLeft - 4);
+    var spaceRight = (ox + pw) - selXp - 14;
+    var spaceLeft  = selXp - ox - 14;
+    var flipLeft   = spaceLeft > spaceRight;
+    var listWidth  = Math.max(0, flipLeft ? spaceLeft : spaceRight);
+
     if (listWidth > 60) {
       var listData   = byY[selYr];
       var listBarH   = listData.total > 0
         ? Math.max(minBarH, Math.round(listData.total / maxTotal * maxBarH))
         : minBarH;
+      var listLeft   = flipLeft ? (selXp - 14 - listWidth) : (selXp + 14);
 
       var list = document.createElement('div');
       list.style.cssText = 'position:absolute;left:' + listLeft + 'px;top:2px;'
@@ -306,8 +311,11 @@ function buildMarkers(investmentRows, countriesArray, isMulti) {
       var rows = listData.invs.map(function(inv) {
         var v      = parseFloat(inv.announced_value_usd_m);
         var valStr = isNaN(v) ? 'N/D' : (v >= 1000 ? '$' + (v / 1000).toFixed(1) + 'B' : '$' + Math.round(v) + 'M');
-        return '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
-          + inv.company_name + ' \u00b7 ' + valStr + '</div>';
+        var label  = inv.company_name + ' \u00b7 ' + valStr;
+        var inner  = inv.source_url
+          ? '<a href="' + inv.source_url + '" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dotted currentColor;">' + label + '</a>'
+          : label;
+        return '<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + inner + '</div>';
       });
 
       list.innerHTML = rows.join('');

@@ -21,8 +21,7 @@ var COUNTRY_MAP = {
   'Malaysia':    'Malaysia',
   'Philippines': 'Philippines',
   'Hong Kong':   'Hong Kong',
-  'New Zealand': 'New Zealand',
-  'Sri Lanka':   'Sri Lanka'
+  'New Zealand': 'New Zealand'
 };
 
 /* ── Country colour map (used by charts.js and pill rendering) ──────────── */
@@ -40,15 +39,14 @@ var CC = {
   'Malaysia':    '#993C1D',
   'Philippines': '#185FA5',
   'Hong Kong':   '#993556',
-  'New Zealand': '#2A8C6E',
-  'Sri Lanka':   '#B5600F'
+  'New Zealand': '#2A8C6E'
 };
 
 /* ── Region grouping ─────────────────────────────────────────────────────── */
 var REGIONS = {
   'Northeast Asia':    ['Japan', 'South Korea', 'China', 'Taiwan', 'Hong Kong'],
   'Southeast Asia':    ['Vietnam', 'Thailand', 'Indonesia', 'Malaysia', 'Philippines', 'Singapore'],
-  'South Asia & Pacific': ['India', 'Australia', 'New Zealand', 'Sri Lanka']
+  'South Asia & Pacific': ['India', 'Australia', 'New Zealand']
 };
 
 /* ── Selection state ─────────────────────────────────────────────────────── */
@@ -257,6 +255,15 @@ function setSelectedMarkerYear(yr) {
   });
   buildMarkers(invRows, sel, compareMode && sel.length > 1);
   if (yr != null) scrollCardsToYear(yr);
+
+  /* Rebuild commodity chart filtered to the selected year (or full aggregate) */
+  var comTrade = tradeData.filter(function(row) {
+    var countryMatch = sel.some(function(c) { return row.country === COUNTRY_MAP[c]; });
+    return countryMatch && (yr == null || Number(row.year) === yr);
+  });
+  buildCom(comTrade, sel, compareMode && sel.length > 1);
+  var yrLbl = document.getElementById('comYrLbl');
+  if (yrLbl) yrLbl.textContent = yr != null ? String(yr) : '2014\u20132025 aggregate';
 }
 
 /* ── scrollCardsToYear — scrolls right panel to the year's card group ────── */
@@ -442,8 +449,11 @@ function buildCards(filteredInvestment) {
       card.className = 'icard';
       card.style.borderLeftColor = inv.clr;
       card.style.animationDelay  = (gi * 3 + ci) * 25 + 'ms';
+      var nameHtml = inv.source_url
+        ? '<a href="' + inv.source_url + '" target="_blank" rel="noopener" class="ic-name-link">' + (inv.company_name || '') + '</a>'
+        : (inv.company_name || '');
       card.innerHTML =
-        '<div class="ic-name">' + (inv.company_name || '') + '</div>' +
+        '<div class="ic-name">' + nameHtml + '</div>' +
         '<div class="ic-loc">'  + loc                         + '</div>' +
         '<div class="ic-sec">'  + (inv.sector || '')           + '</div>' +
         '<div class="ic-meta">' +
@@ -470,6 +480,8 @@ function update() {
   document.getElementById('chartLbl').textContent = lbl;
   document.getElementById('chartLbl').style.color = CC[sel[0]];
   document.getElementById('comLbl').textContent   = multi ? sel.length + ' Countries' : sel[0];
+  var yrLbl = document.getElementById('comYrLbl');
+  if (yrLbl) yrLbl.textContent = '2014\u20132025 aggregate';
 
   /* Filter CSV data to selected countries */
   var filteredTrade = tradeData.filter(function(row) {
