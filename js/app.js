@@ -498,8 +498,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
   Promise.all([
     parseCSV('data/indiana_trade.csv'),
-    parseCSV('data/investment_events.csv'),
-    parseCSV('data/presence_records.csv')
+    parseCSV('https://docs.google.com/spreadsheets/d/e/2PACX-1vS-s3m8pLsJvLN-NaLFS8a6fWIzk2Pm2m7-RQJK7obDmgtYKPLI6EnsrpBlQz6meJf0RES80I2vbz7R/pub?gid=1791453676&single=true&output=csv'),
+    parseCSV('https://docs.google.com/spreadsheets/d/e/2PACX-1vS-s3m8pLsJvLN-NaLFS8a6fWIzk2Pm2m7-RQJK7obDmgtYKPLI6EnsrpBlQz6meJf0RES80I2vbz7R/pub?gid=1379744098&single=true&output=csv')
   ])
   .then(function(results) {
     tradeData      = results[0];
