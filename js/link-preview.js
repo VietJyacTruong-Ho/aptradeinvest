@@ -6,10 +6,10 @@
 (function () {
   'use strict';
 
-  var popup   = null;
-  var showTimer = null;
-  var hideTimer = null;
-  var currentHref = null;
+  var popup        = null;
+  var showTimer    = null;
+  var hideTimer    = null;
+  var currentHref  = null;
 
   /* Build the popup element once */
   function createPopup() {
@@ -25,6 +25,14 @@
         '<path d="M2 10L10 2M10 2H5.5M10 2V6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>' +
       '</svg>';
     document.body.appendChild(el);
+
+    /* After hide transition finishes, collapse out of layout */
+    el.addEventListener('transitionend', function () {
+      if (!el.classList.contains('lp-visible')) {
+        el.style.display = 'none';
+      }
+    });
+
     return el;
   }
 
@@ -35,8 +43,7 @@
   /* Extract readable domain from a URL */
   function parseDomain(href) {
     try {
-      var u = new URL(href);
-      return u.hostname.replace(/^www\./, '');
+      return new URL(href).hostname.replace(/^www\./, '');
     } catch (e) {
       return href;
     }
@@ -49,16 +56,16 @@
       var u    = new URL(href);
       var path = u.pathname + (u.search || '');
       var display = u.hostname.replace(/^www\./, '') + (path === '/' ? '' : path);
-      return display.length > max ? display.slice(0, max) + '…' : display;
+      return display.length > max ? display.slice(0, max) + '\u2026' : display;
     } catch (e) {
-      return href.length > max ? href.slice(0, max) + '…' : href;
+      return href.length > max ? href.slice(0, max) + '\u2026' : href;
     }
   }
 
-  /* Position popup near the anchor element */
-  function positionPopup(el) {
+  /* Position popup anchored below (or above) the link */
+  function positionPopup(anchor) {
     var p    = getPopup();
-    var rect = el.getBoundingClientRect();
+    var rect = anchor.getBoundingClientRect();
     var pw   = p.offsetWidth  || 280;
     var ph   = p.offsetHeight || 56;
     var vw   = window.innerWidth;
@@ -67,10 +74,9 @@
     var top  = rect.bottom + 8;
     var left = rect.left;
 
-    /* Keep within viewport */
-    if (left + pw > vw - 8)  left = vw - pw - 8;
-    if (left < 8)             left = 8;
-    if (top + ph > vh - 8)   top  = rect.top - ph - 8;
+    if (left + pw > vw - 8) left = vw - pw - 8;
+    if (left < 8)            left = 8;
+    if (top + ph > vh - 8)  top  = rect.top - ph - 8;
 
     p.style.left = left + 'px';
     p.style.top  = top  + 'px';
@@ -78,68 +84,77 @@
 
   function showPreview(anchor) {
     var href = anchor.href;
-    if (!href || href.startsWith('javascript:')) return;
+    if (!href || href.indexOf('http') !== 0) return;
+
     currentHref = href;
 
     var p      = getPopup();
     var domain = parseDomain(href);
-    var url    = truncateUrl(href);
 
     p.querySelector('#lp-domain').textContent = domain;
-    p.querySelector('#lp-url').textContent    = url;
+    p.querySelector('#lp-url').textContent    = truncateUrl(href);
 
-    var favicon = p.querySelector('#lp-favicon');
-    favicon.src = 'https://www.google.com/s2/favicons?domain=' + domain + '&sz=32';
-    favicon.onerror = function () { this.style.display = 'none'; };
-    favicon.onload  = function () { this.style.display = ''; };
+    var fav = p.querySelector('#lp-favicon');
+    fav.style.display = '';
+    fav.src = 'https://www.google.com/s2/favicons?domain=' + encodeURIComponent(domain) + '&sz=32';
+    fav.onerror = function () { this.style.display = 'none'; };
 
-    /* Place off-screen first to measure, then position */
-    p.style.opacity    = '0';
-    p.style.transform  = 'translateY(4px)';
-    p.style.display    = 'flex';
-    p.style.pointerEvents = 'none';
+    /* Make it a flex container so offsetWidth is measurable, but start
+       with lp-visible absent so the CSS begins from opacity:0 */
+    p.classList.remove('lp-visible');
+    p.style.display = 'flex';
 
-    /* Next tick so offsetWidth is available */
+    /* Two rAF: first lets display apply, second triggers the transition */
     requestAnimationFrame(function () {
       positionPopup(anchor);
-      p.classList.add('lp-visible');
+      requestAnimationFrame(function () {
+        p.classList.add('lp-visible');
+      });
     });
   }
 
   function hidePreview() {
     if (!popup) return;
     popup.classList.remove('lp-visible');
+    currentHref = null;
+    /* transitionend handler above sets display:none after fade */
   }
 
-  /* Event delegation on document */
+  /* ── Event delegation ─────────────────────────────────────────────────── */
+
   document.addEventListener('mouseover', function (e) {
     var anchor = e.target.closest('a[href]');
     if (!anchor) return;
-    var href = anchor.getAttribute('href');
-    if (!href || !href.startsWith('http')) return;
+    var href = anchor.getAttribute('href') || '';
+    if (href.indexOf('http') !== 0) return;
 
     clearTimeout(hideTimer);
     clearTimeout(showTimer);
-
-    if (anchor.href === currentHref && popup && popup.classList.contains('lp-visible')) return;
-
-    showTimer = setTimeout(function () { showPreview(anchor); }, 180);
+    showTimer = setTimeout(function () { showPreview(anchor); }, 200);
   });
 
   document.addEventListener('mouseout', function (e) {
     var anchor = e.target.closest('a[href]');
     if (!anchor) return;
 
+    /* Only hide when the mouse actually leaves the anchor, not just
+       moves between the anchor and one of its children */
+    var related = e.relatedTarget;
+    if (related && anchor.contains(related)) return;
+
     clearTimeout(showTimer);
-    hideTimer = setTimeout(hidePreview, 120);
+    hideTimer = setTimeout(hidePreview, 150);
   });
 
-  /* Hide on scroll / click */
-  document.addEventListener('scroll', hidePreview, true);
+  /* Dismiss on scroll or click */
+  document.addEventListener('scroll', function () {
+    clearTimeout(showTimer);
+    hidePreview();
+  }, true);
+
   document.addEventListener('click', function () {
     clearTimeout(showTimer);
     hidePreview();
-    currentHref = null;
   });
 
 })();
