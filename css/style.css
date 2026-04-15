@@ -196,7 +196,7 @@ body {
 /* ── Main Content Grid ──────────────────────────────────────────────────── */
 .mc {
   display: grid;
-  grid-template-columns: 82fr 18fr;
+  grid-template-columns: 60fr 40fr;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -270,7 +270,7 @@ body {
 /* Trade chart container — fixed height
    padding-left reserves room for the vertical year-range slider;
    the slider is position:absolute so canvas width: 100% = content width only */
-.tc { flex-shrink: 0; height: 240px; position: relative; padding-left: 20px; }
+.tc { flex-shrink: 0; height: 200px; position: relative; padding-left: 20px; }
 .tc canvas { width: 100% !important; height: 100% !important; }
 
 /* ── Year-range slider ───────────────────────────────────────────────────── */
@@ -318,7 +318,7 @@ body {
 .yr-handle:active { box-shadow: 0 0 0 4px rgba(22,85,162,0.18); }
 
 /* Investment marker strip — padding-left aligns with chart canvas */
-.ms        { flex-shrink: 0; margin-top: 0; margin-bottom: 0; height: 86px; padding-left: 20px; }
+.ms        { flex-shrink: 0; margin-top: 0; margin-bottom: 0; height: 72px; padding-left: 20px; }
 .ms-inner  { position: relative; height: 70px; overflow: visible; }
 .ms-detail { height: 16px; display: flex; align-items: center; margin-top: 0; }
 .ms-dt     { font-size: 11px; color: var(--hint); font-family: var(--font-m); }
