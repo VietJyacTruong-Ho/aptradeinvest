@@ -399,7 +399,6 @@ function buildCards(filteredInvestment) {
       '<div class="empty">' +
         '<p>No investment announcements recorded</p>' +
         '<p class="empty-sub">Strong trade partner with no traceable FDI above the $2M threshold. ' +
-        'This asymmetry may represent an investment attraction opportunity for APBAI.</p>' +
       '</div>';
     return;
   }
