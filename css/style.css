@@ -120,7 +120,7 @@ body {
 .sbar {
   background: var(--card);
   border-bottom: 1px solid var(--border);
-  padding: 0 32px;
+  padding: 0 24px;
   height: 72px;
   flex-shrink: 0;
   display: flex;
@@ -194,15 +194,41 @@ body {
 }
 
 /* ── Main Content Grid ──────────────────────────────────────────────────── */
+/* Two columns: left (sbar + charts) and right panel.
+   Right panel spans from filter bar down — full height of mc.
+   clamp() keeps rp readable at any viewport width. */
 .mc {
   display: grid;
-  grid-template-columns: 82fr 18fr;
+  grid-template-columns: 1fr clamp(200px, 18vw, 340px);
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 16px 32px;
-  gap: 24px;
   position: relative;
+}
+
+/* Left column: sbar flush to top, then padded chart area below */
+.mc-left {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* sbar stretches edge-to-edge within the left column */
+.mc-left > .sbar {
+  flex-shrink: 0;
+  /* inherit border-bottom from .sbar; add right border to meet rp */
+  border-right: none;
+}
+
+/* Chart/commodity panel — padded independently from sbar */
+.mc-left > .lp {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 16px 16px 32px;
+  gap: 8px;
+  /* lp is already display:flex flex-direction:column — padding applied here
+     instead of on .mc so sbar can be flush */
 }
 
 /* ── Loading / Error Overlay ─────────────────────────────────────────────── */
@@ -349,15 +375,18 @@ body {
 }
 
 /* ── Right Panel ────────────────────────────────────────────────────────── */
+/* .rp spans full height of .mc — from top of sbar row to bottom of content.
+   Padding on .mc handles spacing on the right; rp itself has no outer margin. */
 .rp {
   background: white;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
   margin: 0;
+  /* Small right breathing room matching body padding */
+  margin-right: 0;
 }
 .rp-hdr  { padding: 0; flex-shrink: 0; }
 .rpt     { font-family: var(--font-d); font-size: 13px; color: var(--text); padding: 11px 11px 0; margin: 0; flex-shrink: 0; line-height: 1.3; }
