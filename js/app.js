@@ -499,6 +499,7 @@ function update() {
   buildCom(filteredTrade, sel, multi);
   buildCards(filteredInvestment);
   renderCountryCharts(sel, tradeData, investmentData);
+  if (typeof updateMap === 'function') updateMap(sel);
 }
 
 /* ── Bootstrap on DOMContentLoaded ──────────────────────────────────────── */
@@ -546,6 +547,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     update();
     hideOverlay();
+    if (typeof initMap === 'function') initMap();
   })
   .catch(function(err) {
     console.error('Failed to load CSV data:', err);
