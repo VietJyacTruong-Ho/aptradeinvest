@@ -547,7 +547,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     update();
     hideOverlay();
-    if (typeof initMap === 'function') initMap();
+  })
+  .then(function() {
+    /* initMap in its own .then so any map error doesn't trigger showErrorOverlay */
+    try {
+      if (typeof initMap === 'function') initMap();
+    } catch(e) {
+      console.warn('Map init failed:', e);
+    }
   })
   .catch(function(err) {
     console.error('Failed to load CSV data:', err);
