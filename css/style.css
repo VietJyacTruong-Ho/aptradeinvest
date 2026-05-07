@@ -583,11 +583,24 @@ body {
   #lp-popup { transition: none !important; }
 }
 
+/* ── Bottom row: map + commodity side-by-side ────────────────────────────── */
+.mc-bottom {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  height: 360px;
+  border-top: 1px solid var(--border);
+  min-height: 0;
+}
+
 /* ── Indiana Map ─────────────────────────────────────────────────────────── */
 .map-section {
-  border-top: 1px solid var(--border);
+  flex: 0 0 58%;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
   background: var(--card);
-  flex-shrink: 0;
+  min-width: 0;
 }
 .map-hdr {
   display: flex;
@@ -639,8 +652,20 @@ body {
 .mt-ev { background: #536070; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #536070; }
 .mt-pr { background: #536070; opacity: 0.5; }
 #map {
-  height: 420px;
+  flex: 1;
+  min-height: 0;
   width: 100%;
+}
+
+/* Commodity section inside mc-bottom (overrides .lp context sizing) */
+.mc-bottom > .comsec {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: 14px 16px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
 }
 
 /* ── Map legend (multi-country mode) ───────────────────────────────────── */

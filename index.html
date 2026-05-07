@@ -66,31 +66,34 @@
       <div class="ms-inner" id="msInner"></div>
       <div class="ms-detail"><span class="ms-dt" id="msDt">Click a dot to filter investments by year</span></div>
     </div>
+  </div>
+
+  <!-- ── Bottom row: map + commodity chart side-by-side ─────────────────── -->
+  <div class="mc-bottom">
+    <div class="map-section">
+      <div class="map-hdr">
+        <div>
+          <div class="map-title">Asia-Pacific Presence in Indiana</div>
+          <div class="map-sub">Investment events and known facilities · excludes low-confidence records</div>
+        </div>
+        <div class="map-controls">
+          <label class="map-toggle">
+            <input type="checkbox" id="mapShowEvents" checked>
+            <span class="mt-swatch mt-ev"></span>Investment Events
+          </label>
+          <label class="map-toggle">
+            <input type="checkbox" id="mapShowPresence" checked>
+            <span class="mt-swatch mt-pr"></span>Facilities
+          </label>
+          <div id="mapLegend" class="map-legend"></div>
+        </div>
+      </div>
+      <div id="map"></div>
+    </div>
     <div class="comsec">
       <div class="sec-hdr">Top export commodities — <span id="comLbl">Japan</span>, <span id="comYrLbl">2014–2025 aggregate</span></div>
       <div class="comc"><canvas id="comC"></canvas></div>
     </div>
-  </div>
-  <!-- ── Indiana Map ─────────────────────────────────────────────────────── -->
-  <div class="map-section">
-    <div class="map-hdr">
-      <div>
-        <div class="map-title">Asia-Pacific Presence in Indiana</div>
-        <div class="map-sub">Investment events and known facilities · excludes low-confidence records</div>
-      </div>
-      <div class="map-controls">
-        <label class="map-toggle">
-          <input type="checkbox" id="mapShowEvents" checked>
-          <span class="mt-swatch mt-ev"></span>Investment Events
-        </label>
-        <label class="map-toggle">
-          <input type="checkbox" id="mapShowPresence" checked>
-          <span class="mt-swatch mt-pr"></span>Facilities
-        </label>
-        <div id="mapLegend" class="map-legend"></div>
-      </div>
-    </div>
-    <div id="map"></div>
   </div>
 
   </div><!-- /.mc-left -->
