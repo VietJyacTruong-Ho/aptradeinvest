@@ -335,7 +335,8 @@ function handleCompare() {
 /* ── toggleRegion — "Group by Region" button ────────────────────────────── */
 function toggleRegion() {
   regionMode = !regionMode;
-  document.getElementById('regionBtn').classList.toggle('on', regionMode);
+  var rb = document.getElementById('regionBtn');
+  if (rb) rb.classList.toggle('on', regionMode);
   renderPills();
 }
 
@@ -530,7 +531,8 @@ document.addEventListener('DOMContentLoaded', function() {
     renderPills();
     initYearSlider();
 
-    document.getElementById('regionBtn').addEventListener('click', toggleRegion);
+    var regionBtn = document.getElementById('regionBtn');
+    if (regionBtn) regionBtn.addEventListener('click', toggleRegion);
     document.getElementById('cmprChk').addEventListener('change', handleCompare);
 
     window.addEventListener('resize', function() {
