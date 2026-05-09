@@ -655,6 +655,7 @@ body[data-density="spacious"] .card-com .comc { min-height: 420px; height: 420px
   flex: 1;
   min-height: 200px;
   width: 100%;
+  touch-action: none;
   border-top: 1px solid var(--border);
 }
 .map-legend {
@@ -669,6 +670,16 @@ body[data-density="spacious"] .card-com .comc { min-height: 420px; height: 420px
   min-height: 0;
 }
 .map-legend:empty { display: none; }
+.map-accuracy-note {
+  padding: 5px 16px 6px;
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0.7;
+  font-style: italic;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
 .ml-item {
   display: flex;
   align-items: center;
