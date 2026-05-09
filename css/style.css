@@ -84,6 +84,28 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* ── Body row: left scroll col + locked right rail ─────────────────── */
+.body-row {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr var(--rail-w);
+  overflow: hidden;
+}
+.left-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+}
+.left-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-grid);
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    PINNED TOP CHROME
    ════════════════════════════════════════════════════════════════════════ */
@@ -324,6 +346,7 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
 }
+.left-col > .sbar { flex-shrink: 0; border-bottom: 1px solid var(--border); }
 .canvas::-webkit-scrollbar { width: 8px; }
 .canvas::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
 
@@ -349,20 +372,7 @@ body {
 @keyframes ov-spin { to { transform: rotate(360deg); } }
 .ov-txt { font-family: var(--font-b); font-size: 11px; color: var(--hint); }
 
-/* ── Grid: chart card spans, rail to right; commodity below chart ─────── */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr var(--rail-w);
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "trade rail"
-    "com   rail";
-  gap: var(--gap-grid);
-  align-items: start;
-}
-.card-trade { grid-area: trade; }
-.card-com   { grid-area: com; }
-.rail       { grid-area: rail; }
+
 
 /* ── Card ─────────────────────────────────────────────────────────────── */
 .card {
@@ -525,15 +535,11 @@ body[data-density="spacious"] .card-com .comc { min-height: 420px; height: 420px
    ════════════════════════════════════════════════════════════════════════ */
 .rail {
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  position: sticky;
-  top: 0;
-  height: calc(100vh - var(--h-hdr) - var(--h-fbar) - var(--h-sbar) - (var(--pad-page) * 2));
-  min-height: 480px;
+  min-height: 0;
+  min-width: 0;
 }
 
 .tabs {
@@ -541,10 +547,12 @@ body[data-density="spacious"] .card-com .comc { min-height: 420px; height: 420px
   border-bottom: 1px solid var(--border);
   background: var(--bg-2);
   flex-shrink: 0;
+  height: var(--h-sbar);
+  align-items: stretch;
 }
 .tab {
   flex: 1;
-  height: 44px;
+  height: 100%;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
@@ -837,14 +845,9 @@ body[data-rail="split"] .rail-pane-map #map { min-height: 200px; }
   .ov-spinner { animation: none !important; border-top-color: var(--border); }
 }
 
-/* ── Smaller viewports — collapse rail under chart ────────────────────── */
+/* ── Smaller viewports ────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
-  .grid {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "trade"
-      "rail"
-      "com";
-  }
-  .rail { position: relative; max-height: 700px; }
+  .body-row { grid-template-columns: 1fr; }
+  .left-col { border-right: none; }
+  .rail { border-top: 1px solid var(--border); min-height: 520px; }
 }
